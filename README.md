@@ -27,5 +27,5 @@ pip install -r requirements.txt
 Start the webserver:
 ```
 cd wikipedia-app
-python -m flask run
+flask run
 ```
