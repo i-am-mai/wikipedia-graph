@@ -1,1 +1,47 @@
 {% extends "base.html" %}
+{% block head %}
+    <script src="//unpkg.com/3d-force-graph"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid h-100 w-100">
+    <div class="row">
+        <div class="col-2">
+            <form method="post">
+                <input type="text" class="form-control" placeholder="Search" name="title">
+            </form>
+        </div>
+        <div class="col">
+
+            <!-- Placeholder graph for testing-->
+            <div id="3d-graph" class="h-100 overflow-hidden">
+                <svg></svg>
+            </div>
+            <script>
+                // Random tree
+                const N = 100;
+                const gData = {
+                nodes: [...Array(N).keys()].map(i => ({ id: i })),
+                links: [...Array(N).keys()]
+                    .filter(id => id)
+                    .map(id => ({
+                    source: id,
+                    target: Math.round(Math.random() * (id-1))
+                    }))
+                };
+
+                const Graph = ForceGraph3D()
+                (document.getElementById('3d-graph'))
+                    .jsonUrl("/api?title={{title}}")
+                    .linkDirectionalArrowLength(3.5)
+                    .linkDirectionalArrowRelPos(1);
+            </script>
+        </div>
+    </div>
+    <ul>
+        {% for link in links %}
+            <li>{{ link }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

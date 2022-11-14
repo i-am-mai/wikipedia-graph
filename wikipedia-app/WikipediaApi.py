@@ -35,6 +35,8 @@ def get_links(title: str) -> List[str]:
         except Exception as e:
             return links
 
+
+
 # Use this to test the API; change "Wikipedia" to any valid Wikipedia article title.
 
 # links = get_links("Wikipedia")
