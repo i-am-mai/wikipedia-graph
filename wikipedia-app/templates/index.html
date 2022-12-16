@@ -1,42 +1,82 @@
 {% extends "base.html" %}
 {% block head %}
-    <script src="//unpkg.com/3d-force-graph"></script>
+    <script src="//unpkg.com/force-graph"></script>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid h-100 w-100">
-    <div class="row">
-        <div class="col-2">
-            <form method="post">
-                <input type="text" class="form-control" placeholder="Search" name="title">
+    <div class="d-flex flex-row">
+        <div class="d-flex p-2">
+            <form onsubmit="getData()">
+                <input id="search" type="text" class="form-control" placeholder="Search">
             </form>
         </div>
-        <div class="col">
-
-            <!-- Placeholder graph for testing-->
-            <div id="3d-graph" class="h-100 overflow-hidden">
-                <svg></svg>
-            </div>
-            <script>
-                // Random tree
-                const N = 100;
-                const gData = {
-                nodes: [...Array(N).keys()].map(i => ({ id: i })),
-                links: [...Array(N).keys()]
-                    .filter(id => id)
-                    .map(id => ({
-                    source: id,
-                    target: Math.round(Math.random() * (id-1))
-                    }))
-                };
-
-                const Graph = ForceGraph3D()
-                (document.getElementById('3d-graph'))
-                    .jsonUrl("/api?title={{title}}")
-                    .linkDirectionalArrowLength(3.5)
-                    .linkDirectionalArrowRelPos(1);
-            </script>
+        <div class="d-flex p-2">
+            <button class="rounded border" type="button" id="get_more" onclick="getGraph()">Get more</button>
         </div>
     </div>
+    <!-- Placeholder graph for testing-->
+    <div id="graph" class="h-100">
+    </div>
+    <script>
+            function getData() {
+                event.preventDefault();
+                let title = document.getElementById("search").value;
+                localStorage.clear();
+                fetch('/api?title=' + title).then(res => res.json()).then(data => {
+                    localStorage.setItem("titles", data);      
+                    getGraph();              
+                });
+            }
+
+            function getGraph() {
+                let titles = localStorage.getItem("titles").split(",");
+
+                let newTitles = Array.from({length: 10}, () => Math.floor(Math.random() * titles.length)).map(i => titles[i]);
+                newTitles[0] = titles[0];
+
+                const gData = {
+                    nodes: newTitles.map(node => ({
+                            id: node,
+                            name: node,
+                            color: "rgba(0, 0, 0, 1)",
+                            val: 10,
+                        })),
+                    links: newTitles.slice(1).map(node => ({
+                            source: newTitles[0],
+                            target: node,
+                            length: 10
+                        }))
+                }
+                const Graph = ForceGraph()
+                (document.getElementById('graph'))
+                    .graphData(gData)
+                    .nodeId('id')
+                    .nodeVal('val')
+                    .nodeLabel('id')
+                    .nodeCanvasObject((node, ctx, globalScale) => {
+                        const label = node.id;
+                        const fontSize = 16/globalScale;
+                        ctx.font = `${fontSize}px Sans-Serif`;
+                        const textWidth = ctx.measureText(label).width;
+                        const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = node.color;
+                        ctx.fillText(label, node.x, node.y);
+
+                        node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+                    })
+                    .nodePointerAreaPaint((node, color, ctx) => {
+                        ctx.fillStyle = color;
+                        const bckgDimensions = node.__bckgDimensions;
+                        bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+                    });
+            }
+    </script>
 </div>
 {% endblock %}

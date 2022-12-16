@@ -18,14 +18,6 @@ def about():
 @app.route("/api")
 def api():
     if (request.args):
-        links = WikipediaApi.get_links(request.args['title'])
-        links.insert(0, request.args['title'])
-        nodes = [{"id": link, "name": link} for link in links]
-        edges = [{"source": links[0], "target": link} for link in links[1:]]
-        data = {}
-        data['nodes'] = nodes
-        data['links'] = edges
-        j = jsonify(data)
-        return j
+        return WikipediaApi.get_links(request.args['title'])
     else:
         redirect("/")

@@ -1,15 +1,9 @@
 from typing import List
+from flask import jsonify, Response
 import requests
+import re
 
 BASE_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query"
-
-def format_title(title: str) -> str:
-    """
-    @rtype: str
-    @param title: A title corresponding to a Wikipedia article
-    @return: The title separated by underscores
-    """
-    return "_".join(title.split(" "))
 
 def get_links(title: str) -> List[str]:
     """
@@ -18,7 +12,7 @@ def get_links(title: str) -> List[str]:
     @return: A list of Wikipedia links that the article contains.
     """
 
-    title = format_title(title)
+    # title = format_title(title)
     plcontinue = ""
     links = []
 
@@ -33,15 +27,32 @@ def get_links(title: str) -> List[str]:
                 links.append(link['title'])
             plcontinue = data['continue']['plcontinue']
         except Exception as e:
-            return links
+            break
+    for i in range(len(links)):
+        if re.search("^[A-Za-z\s]+:[A-Za-z]+", links[i]):
+            links = links[:i]
+            break
+    links.insert(0, title)
+    return jsonify(links)
 
-
-
-# Use this to test the API; change "Wikipedia" to any valid Wikipedia article title.
-
-# links = get_links("Wikipedia")
-
-# with open("test.txt", "wb") as file:
+# def get_summary(links: List[str]) -> list:
+#     i = 0
+#     excontinue = ""
 #     for link in links:
-#         file.write((link).encode('utf-8'))
-#         file.write("\n".encode('utf-8'))
+#         r = requests.get(f"{BASE_URL}&titles={link}&prop=extracts&explaintext&exchars=100")
+#         data = r.json()
+#         pages = data['query']['pages']
+#         for page in pages:
+#             print(pages[page]['extract'])
+
+# def get_graph(title: str) -> Response:
+#     links = get_links(title)
+#     links.insert(0, title)
+#     nodes = [{"id": links[i], "name": links[i], "val": 1, "color": "rgba(0, 0, 0, 1)"} for i in [random.randrange(0, len(links)) for x in range(10)]]
+#     nodes.insert(0, {"id": title, "name": title, "val": 1, "color": "rgba(0, 0, 0, 1)"})
+#     edges = [{"source": title, "target": node["id"]} for node in nodes]
+#     data = {}
+#     data['nodes'] = nodes
+#     data['links'] = edges
+#     j = jsonify(data)
+#     return j
