@@ -1,0 +1,10 @@
+@font-face {
+    font-family: "Linux Libertine";
+    src: url("fonts/LinLibertine_DRah.woff2");
+}
+
+body {
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+}
