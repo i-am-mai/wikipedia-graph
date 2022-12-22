@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block head %}
     <script src="//unpkg.com/force-graph"></script>
+    <link rel="stylesheet" href="static/style.css">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid h-100 w-100">
+<div class="container-fluid">
     <div class="d-flex flex-row">
         <div class="d-flex p-2">
             <form onsubmit="getData()">
@@ -15,36 +16,63 @@
             <button class="rounded border" type="button" id="get_more" onclick="getGraph()">Get more</button>
         </div>
     </div>
-    <!-- Placeholder graph for testing-->
-    <div id="graph" class="h-100">
-    </div>
+    <div id="graph"></div>
     <script>
             function getData() {
                 event.preventDefault();
                 let title = document.getElementById("search").value;
                 localStorage.clear();
                 fetch('/api?title=' + title).then(res => res.json()).then(data => {
-                    localStorage.setItem("titles", data);      
+                    sessionStorage.setItem("titles", data);      
                     getGraph();              
                 });
             }
 
-            function getGraph() {
-                let titles = localStorage.getItem("titles").split(",");
+            function getRandom(arr, n) {
+                let result = new Array(n),
+                    len = arr.length,
+                    taken = new Array(len);
+                while (n--) {
+                    let x = Math.floor(Math.random() * len);
+                    result[n] = arr[x in taken ? taken[x] : x]
+                    taken[x] = --len in taken ? taken[len] : len;
+                }
+                return result;
+            }
 
-                let newTitles = Array.from({length: 10}, () => Math.floor(Math.random() * titles.length)).map(i => titles[i]);
+            function getGraph() {
+                let titles = sessionStorage.getItem("titles").split(",");
+                let newTitles;
+                if (titles.length > 10) {
+                    newTitles = getRandom(titles.slice(1), 10);
+                }
+                else {
+                    newTitles = titles;
+                }
+
                 newTitles[0] = titles[0];
+                let extracts = [];
+
+                for (let i = 0; i < newTitles.length; i++) {
+                    let extract = fetch('/api?extracts=' + newTitles[i]).then(res => res.text());
+                    extracts.push({
+                        title: newTitles[i],
+                        extract: extracts[i]
+                    });
+                }
 
                 const gData = {
-                    nodes: newTitles.map(node => ({
-                            id: node,
-                            name: node,
+                    nodes: extracts.map(node => (
+                        {
+                            id: node.title,
+                            name: node.title,
+                            extract: node.extract,
                             color: "rgba(0, 0, 0, 1)",
-                            val: 10,
+                            val: 10
                         })),
-                    links: newTitles.slice(1).map(node => ({
-                            source: newTitles[0],
-                            target: node,
+                    links: extracts.slice(1).map(node => ({
+                            source: extracts[0].title,
+                            target: node.title,
                             length: 10
                         }))
                 }
@@ -56,14 +84,14 @@
                     .nodeLabel('id')
                     .nodeCanvasObject((node, ctx, globalScale) => {
                         const label = node.id;
-                        const fontSize = 16/globalScale;
-                        ctx.font = `${fontSize}px Sans-Serif`;
+                        const fontSize = 20/globalScale;
+                        ctx.font = `${fontSize}px Linux Libertine`;
                         const textWidth = ctx.measureText(label).width;
                         const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
 
                         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                         ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
-
+                        
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillStyle = node.color;
@@ -75,6 +103,10 @@
                         ctx.fillStyle = color;
                         const bckgDimensions = node.__bckgDimensions;
                         bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+                    })
+                    .onNodeClick(node => {
+                        Graph.centerAt(node.x, node.y, 1000);
+                        Graph.zoom(8, 2000);
                     });
             }
     </script>
