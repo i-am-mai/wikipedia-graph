@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, jsonify, redirect
+from flask import Flask, render_template, request, redirect, make_response
 import WikipediaApi
 
 app = Flask(__name__)
@@ -17,7 +17,11 @@ def about():
 
 @app.route("/api")
 def api():
-    if (request.args):
+    if ('title' in request.args):
         return WikipediaApi.get_links(request.args['title'])
+    elif ('extracts' in request.args):
+        response = make_response(WikipediaApi.get_summary(request.args['extracts']), 200)
+        response.mimetype = "text/plain"
+        return response
     else:
         redirect("/")

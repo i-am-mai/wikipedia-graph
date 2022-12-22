@@ -35,15 +35,13 @@ def get_links(title: str) -> List[str]:
     links.insert(0, title)
     return jsonify(links)
 
-# def get_summary(links: List[str]) -> list:
-#     i = 0
-#     excontinue = ""
-#     for link in links:
-#         r = requests.get(f"{BASE_URL}&titles={link}&prop=extracts&explaintext&exchars=100")
-#         data = r.json()
-#         pages = data['query']['pages']
-#         for page in pages:
-#             print(pages[page]['extract'])
+def get_summary(title: str) -> str:
+    i = 0
+    r = requests.get(f"{BASE_URL}&titles={title}&prop=extracts&explaintext&exchars=100")
+    data = r.json()
+    pages = data['query']['pages']
+    page = next(iter(pages.items()))[0]
+    return pages[page]['extract']
 
 # def get_graph(title: str) -> Response:
 #     links = get_links(title)
