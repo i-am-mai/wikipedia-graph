@@ -35,22 +35,18 @@ def get_links(title: str) -> List[str]:
     links.insert(0, title)
     return jsonify(links)
 
-def get_summary(title: str) -> str:
+def get_summary(titles: str) -> str:
     i = 0
-    r = requests.get(f"{BASE_URL}&titles={title}&prop=extracts&explaintext&exchars=100")
+    r = requests.get(f"{BASE_URL}&titles={titles}&prop=extracts&explaintext=true&exintro=true&exchars=200")
     data = r.json()
     pages = data['query']['pages']
-    page = next(iter(pages.items()))[0]
-    return pages[page]['extract']
+    summaries = {}
+    for page in pages:
+        try:
+            summaries[pages[page]['title']] = pages[page]['extract']
+        except Exception as e:
+            summaries[pages[page]['title']] = pages[page]['title']
+    return jsonify(summaries)
 
-# def get_graph(title: str) -> Response:
-#     links = get_links(title)
-#     links.insert(0, title)
-#     nodes = [{"id": links[i], "name": links[i], "val": 1, "color": "rgba(0, 0, 0, 1)"} for i in [random.randrange(0, len(links)) for x in range(10)]]
-#     nodes.insert(0, {"id": title, "name": title, "val": 1, "color": "rgba(0, 0, 0, 1)"})
-#     edges = [{"source": title, "target": node["id"]} for node in nodes]
-#     data = {}
-#     data['nodes'] = nodes
-#     data['links'] = edges
-#     j = jsonify(data)
-#     return j
+def get_thumbnail(title: str) -> str:
+    r = requests.get(f"{BASE_URL}&titles={title}&prop=pageimages&piprop=thumbnail")
