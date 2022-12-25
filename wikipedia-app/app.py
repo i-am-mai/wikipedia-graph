@@ -20,8 +20,8 @@ def api():
     if ('title' in request.args):
         return WikipediaApi.get_links(request.args['title'])
     elif ('extracts' in request.args):
-        response = make_response(WikipediaApi.get_summary(request.args['extracts']), 200)
-        response.mimetype = "text/plain"
-        return response
+        return WikipediaApi.get_summary(request.args['extracts'])
+    elif ('images' in request.args):
+        return
     else:
         redirect("/")

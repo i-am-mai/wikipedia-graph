@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid h-100">
     <div class="d-flex flex-row">
         <div class="d-flex p-2">
             <form onsubmit="getData()">
@@ -18,97 +18,120 @@
     </div>
     <div id="graph"></div>
     <script>
-            function getData() {
-                event.preventDefault();
-                let title = document.getElementById("search").value;
-                localStorage.clear();
-                fetch('/api?title=' + title).then(res => res.json()).then(data => {
-                    sessionStorage.setItem("titles", data);      
-                    getGraph();              
+        function fetchRetry(url, options = {}, retries) {
+            function onError(err) {
+                retries--;
+                if (retries == 0) {
+                    throw err;
+                }
+                return fetchRetry(url, options, retries);
+            }
+            return fetch(url, options).catch(onError);
+        }
+
+        function getData() {
+            event.preventDefault();
+            let title = document.getElementById("search").value;
+            localStorage.clear();
+            fetchRetry('/api?title=' + title, {}, 2).then(res => res.json()).then(data => {
+                sessionStorage.setItem("titles", data);     
+                getGraph();              
+            });
+        }
+
+        function getRandom(arr, n) {
+            let result = new Array(n),
+                len = arr.length,
+                taken = new Array(len);
+            while (n--) {
+                let x = Math.floor(Math.random() * len);
+                result[n] = arr[x in taken ? taken[x] : x]
+                taken[x] = --len in taken ? taken[len] : len;
+            }
+            return result;
+        }
+
+        const gData = {
+            nodes: [],
+            links: []
+        }
+
+        async function getGraph() {
+            let titles = sessionStorage.getItem("titles").split(",");
+            let newTitles;
+            if (titles.length > 10) {
+                newTitles = getRandom(titles.slice(1), 10);
+            }
+            else {
+                newTitles = titles;
+            }
+
+            newTitles[0] = titles[0];
+            let titleString = newTitles.join('|');
+            console.log(titleString);
+            let extracts = await fetchRetry('/api?extracts=' + titleString, {}, 2).then(res => res.json())
+            extracts = Object.keys(extracts).map(key => ({
+                title: key,
+                extract: extracts[key] === "" ? key : extracts[key]
+            }));
+            console.log(extracts);
+
+            gData['nodes'] = extracts.map(node => (
+                {
+                    id: node.title,
+                    name: node.title,
+                    extract: node.extract,
+                    color: "rgba(0, 0, 0, 1)",
+                    val: 10
+                }));
+            gData['links'] = extracts.map(node => ({
+                    source: titles[0],
+                    target: node.title,
+                    length: 10
+                }));
+            renderGraph(gData);
+        }
+
+        function renderGraph(gData = {}) {
+            const Graph = ForceGraph()
+            (document.getElementById('graph'))
+                .graphData(gData)
+                .nodeId('id')
+                .nodeVal('val')
+                .nodeLabel(node => {
+                    return `
+                        <div class="summary">
+                            ${node.extract}
+                        </div>
+                    `
+                })
+                .nodeCanvasObject((node, ctx, globalScale) => {
+                    const label = node.id;
+                    const fontSize = 20/globalScale;
+                    ctx.font = `${fontSize}px Linux Libertine`;
+                    const textWidth = ctx.measureText(label).width;
+                    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+                    
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = node.color;
+                    ctx.fillText(label, node.x, node.y);
+
+                    node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+                })
+                .nodePointerAreaPaint((node, color, ctx) => {
+                    ctx.fillStyle = color;
+                    const bckgDimensions = node.__bckgDimensions;
+                    bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
+                })
+                .onNodeClick(node => {
+                    Graph.centerAt(node.x, node.y, 1000);
+                    Graph.zoom(8, 2000);
                 });
-            }
-
-            function getRandom(arr, n) {
-                let result = new Array(n),
-                    len = arr.length,
-                    taken = new Array(len);
-                while (n--) {
-                    let x = Math.floor(Math.random() * len);
-                    result[n] = arr[x in taken ? taken[x] : x]
-                    taken[x] = --len in taken ? taken[len] : len;
-                }
-                return result;
-            }
-
-            function getGraph() {
-                let titles = sessionStorage.getItem("titles").split(",");
-                let newTitles;
-                if (titles.length > 10) {
-                    newTitles = getRandom(titles.slice(1), 10);
-                }
-                else {
-                    newTitles = titles;
-                }
-
-                newTitles[0] = titles[0];
-                let extracts = [];
-
-                for (let i = 0; i < newTitles.length; i++) {
-                    let extract = fetch('/api?extracts=' + newTitles[i]).then(res => res.text());
-                    extracts.push({
-                        title: newTitles[i],
-                        extract: extracts[i]
-                    });
-                }
-
-                const gData = {
-                    nodes: extracts.map(node => (
-                        {
-                            id: node.title,
-                            name: node.title,
-                            extract: node.extract,
-                            color: "rgba(0, 0, 0, 1)",
-                            val: 10
-                        })),
-                    links: extracts.slice(1).map(node => ({
-                            source: extracts[0].title,
-                            target: node.title,
-                            length: 10
-                        }))
-                }
-                const Graph = ForceGraph()
-                (document.getElementById('graph'))
-                    .graphData(gData)
-                    .nodeId('id')
-                    .nodeVal('val')
-                    .nodeLabel('id')
-                    .nodeCanvasObject((node, ctx, globalScale) => {
-                        const label = node.id;
-                        const fontSize = 20/globalScale;
-                        ctx.font = `${fontSize}px Linux Libertine`;
-                        const textWidth = ctx.measureText(label).width;
-                        const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
-
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                        ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
-                        
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillStyle = node.color;
-                        ctx.fillText(label, node.x, node.y);
-
-                        node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
-                    })
-                    .nodePointerAreaPaint((node, color, ctx) => {
-                        ctx.fillStyle = color;
-                        const bckgDimensions = node.__bckgDimensions;
-                        bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
-                    })
-                    .onNodeClick(node => {
-                        Graph.centerAt(node.x, node.y, 1000);
-                        Graph.zoom(8, 2000);
-                    });
-            }
+        }
     </script>
 </div>
 {% endblock %}

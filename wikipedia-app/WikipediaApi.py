@@ -37,13 +37,14 @@ def get_links(title: str) -> List[str]:
 
 def get_summary(titles: str) -> str:
     i = 0
-    r = requests.get(f"{BASE_URL}&titles={titles}&prop=extracts&explaintext=true&exintro=true&exchars=200")
+    r = requests.get(f"{BASE_URL}&titles={titles}&prop=extracts&exintro=true&exchars=300")
     data = r.json()
     pages = data['query']['pages']
     summaries = {}
     for page in pages:
         try:
-            summaries[pages[page]['title']] = pages[page]['extract']
+            extract = pages[page]['extract']
+            summaries[pages[page]['title']] = re.sub('<[^<b]+?>', '', extract)
         except Exception as e:
             summaries[pages[page]['title']] = pages[page]['title']
     return jsonify(summaries)

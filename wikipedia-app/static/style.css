@@ -8,3 +8,29 @@ body {
     width: 100vw;
     height: 100vh;
 }
+
+.container {
+    flex-grow: 0;
+    flex-shrink: 1;
+}
+
+.graph {
+    width: 100vw;
+    height: 100vh;
+}
+
+.summary {
+    flex: 0 1;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: black;
+    font-size: 1em;
+    margin: 0;
+    padding: 0.25em;
+}
+
+.force-graph-container .graph-tooltip {
+    background: rgba(0, 0, 0, 0);
+    padding: 0px;
+    border: 1px solid rgba(200, 200, 200, 0.5);
+    border-radius: 0;
+}
