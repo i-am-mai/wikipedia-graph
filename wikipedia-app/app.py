@@ -17,11 +17,14 @@ def about():
 
 @app.route("/api")
 def api():
-    if ('title' in request.args):
-        return WikipediaApi.get_links(request.args['title'])
-    elif ('extracts' in request.args):
-        return WikipediaApi.get_summary(request.args['extracts'])
-    elif ('images' in request.args):
-        return
+    if ('prop' in request.args):
+        if (request.args['prop'] == 'links'):
+            return WikipediaApi.get_links(request.args['titles'])
+        elif (request.args['prop'] == 'extracts'):
+            return WikipediaApi.get_summary(request.args['titles'])
+        elif (request.args['prop'] == 'images'):
+            return WikipediaApi.get_thumbnail(request.args['titles'])
+    elif ('query' in request.args):
+        return WikipediaApi.search(request.args['query'])
     else:
         redirect("/")
