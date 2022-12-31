@@ -3,22 +3,22 @@ from flask import jsonify, Response
 import requests
 import re
 
-BASE_URL = "https://en.wikipedia.org/w/api.php?format=json&action=query"
+BASE_URL = "https://en.wikipedia.org/w/api.php?format=json"
 
-def get_links(title: str) -> List[str]:
+def get_links(title: str) -> Response:
     """
     @rtype: List[str]
     @param title: A title corresponding to a Wikipedia article
     @return: A list of Wikipedia links that the article contains.
     """
 
-    # title = format_title(title)
+    title = title.replace('&', '%26')
     plcontinue = ""
     links = []
 
     while (True):
         temp = f"&plcontinue={plcontinue}" if plcontinue != "" else ""
-        r = requests.get(f"{BASE_URL}&titles={title}&prop=links&pllimit=max{temp}")
+        r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={title}&prop=links&pllimit=max{temp}")
         try:
             data = r.json()
             id = next(iter(data['query']['pages']))
@@ -32,22 +32,53 @@ def get_links(title: str) -> List[str]:
         if re.search("^[A-Za-z\s]+:[A-Za-z]+", links[i]):
             links = links[:i]
             break
-    links.insert(0, title)
     return jsonify(links)
 
-def get_summary(titles: str) -> str:
+def get_summary(titles: str) -> Response:
+    titles = titles.replace('&', '%26')
     i = 0
-    r = requests.get(f"{BASE_URL}&titles={titles}&prop=extracts&exintro=true&exchars=300")
+    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=extracts&exintro=true")
     data = r.json()
     pages = data['query']['pages']
     summaries = {}
     for page in pages:
-        try:
-            extract = pages[page]['extract']
-            summaries[pages[page]['title']] = re.sub('<[^<b]+?>', '', extract)
-        except Exception as e:
-            summaries[pages[page]['title']] = pages[page]['title']
+        if "extract" in pages[page].keys():
+            extract = re.sub('(?!<b>|</b>|<span>|</span>)(<[^<]+?>|;<[^<]+?>)', '', pages[page]['extract'])
+            extract = re.sub('<!--[^<]+?-->', '', extract)
+            if (len(extract) > 250):
+                words = extract.split()
+                i = 0
+                extract = ""
+                for x in words:
+                    extract += " " + x
+                    i += len(x)
+                    if (i > 197):
+                        break
+                if extract[len(extract) - 1] == "":
+                    extract = extract[:len(extract) - 1]
+                extract += "..."
+            summaries[pages[page]['title']] = extract
+        else:
+            summaries[pages[page]['title']] = f"<b>{pages[page]['title']}</b>"
     return jsonify(summaries)
 
-def get_thumbnail(title: str) -> str:
-    r = requests.get(f"{BASE_URL}&titles={title}&prop=pageimages&piprop=thumbnail")
+def get_thumbnail(titles: str) -> Response:
+    titles = titles.replace('&', '%26')
+    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=pageimages&piprop=thumbnail&pilicense=any&pithumbsize=300")
+    data = r.json()
+    pages = data['query']['pages']
+    images = {}
+    for page in pages:
+        if 'thumbnail' in pages[page].keys():
+            images[pages[page]['title']] = pages[page]['thumbnail']['source']
+        else:
+            images[pages[page]['title']] = ""
+    return jsonify(images)
+
+def search(input: str) -> Response:
+    r = requests.get(f"{BASE_URL}&action=opensearch&search={input}")
+    data = r.json()
+    if len(data) > 1:
+        return jsonify(data[1])
+    else:
+        return jsonify(data[0])
