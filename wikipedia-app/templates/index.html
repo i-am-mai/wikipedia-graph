@@ -33,14 +33,31 @@
             }
             return fetch(url, options).catch(onError);
         }
+        
+        function escapeHTML(str) {
+            const entityMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+                '/': '&#x2F;',
+                '`': '&#x60;',
+                '=': '&#x3D;'
+            };
+
+            return String(string).replace(/[&<>"'`=\/]/g, s => {
+                return entityMap[s];
+            });
+        }
 
         function searchSuggestions() {
-            let search = document.getElementById("search").value;
+            let search = escapeHTML(document.getElementById("search").value);
         }
 
         function getData() {
             event.preventDefault();
-            let title = document.getElementById("search").value;
+            let title = escapeHTML(document.getElementById("search").value);
             sessionStorage.clear();
             fetchRetry('/api?prop=links&titles=' + title, {}, 2).then(res => res.json()).then(data => {
                 if (!Array.isArray(data) || !data.length) {
@@ -138,14 +155,14 @@
                     if (node.image !== "") {
                         return `
                             <div class="popup d-flex flex-row">
-                                <p class="summary p-2">${node.extract}</p>
+                                <p class="summary p-1">${node.extract}</p>
                                 <img src=${node.image} class="thumbnail">
                             </div>
                         `
                     }
                     else {
                         return `
-                            <div class="popup p-2">
+                            <div class="popup p-1">
                                 <p class="summary">${node.extract}</p>
                             </div>
                         `
