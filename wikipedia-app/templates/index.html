@@ -1,19 +1,24 @@
 {% extends "base.html" %}
 {% block head %}
+    <title>wikipedia rabbit hole</title>
     <script src="//unpkg.com/force-graph"></script>
-    <link rel="stylesheet" href="static/style.css">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid h-100">
-    <div class="d-flex flex-row">
-        <div class="d-flex p-2">
-            <form onsubmit="getData()">
-                <input id="search" type="text" class="form-control" placeholder="Search">
+<div class="container-fluid p-1">
+    <div class="d-flex flex-row align-items-center">
+        <div class="p-2">
+            <form onsubmit="getData()" onchange="searchSuggestions()">
+                <input id="search" type="text" class="form-control" placeholder="Search...">
+                <div class="results">
+                </div>
             </form>
         </div>
-        <div class="d-flex p-2">
-            <button class="rounded border" type="button" id="get_more" onclick="getGraph()">Get more</button>
+        <div class="p-2 align-self-stretch">
+            <button class="btn btn-outline-secondary" type="button" id="get_more" onclick="getGraph().then(data => renderGraph(data))">Get more</button>
+        </div>
+        <div class="p-2">
+            <p id="error" class="m-0"></p>
         </div>
     </div>
     <div id="graph"></div>
@@ -29,13 +34,24 @@
             return fetch(url, options).catch(onError);
         }
 
+        function searchSuggestions() {
+            let search = document.getElementById("search").value;
+        }
+
         function getData() {
             event.preventDefault();
             let title = document.getElementById("search").value;
-            localStorage.clear();
-            fetchRetry('/api?title=' + title, {}, 2).then(res => res.json()).then(data => {
-                sessionStorage.setItem("titles", data);     
-                getGraph();              
+            sessionStorage.clear();
+            fetchRetry('/api?prop=links&titles=' + title, {}, 2).then(res => res.json()).then(data => {
+                if (!Array.isArray(data) || !data.length) {
+                    document.getElementById('error').innerHTML = "Please try again.";
+                }
+                else {
+                    document.getElementById('error').innerHTML = "";
+                    sessionStorage.setItem("curr", title);
+                    sessionStorage.setItem(title, data.join('|'));     
+                    getGraph(title).then(data => renderGraph(data));     
+                }         
             });
         }
 
@@ -51,60 +67,91 @@
             return result;
         }
 
-        const gData = {
-            nodes: [],
-            links: []
-        }
-
         async function getGraph() {
-            let titles = sessionStorage.getItem("titles").split(",");
-            let newTitles;
-            if (titles.length > 10) {
-                newTitles = getRandom(titles.slice(1), 10);
+            let title = sessionStorage.getItem("curr");
+            let links = sessionStorage.getItem(title).split("|");
+            let linkSet;
+            if (links.length > 10) {
+                linkSet = getRandom(links, 10);
             }
             else {
-                newTitles = titles;
+                linkSet = links;
             }
 
-            newTitles[0] = titles[0];
-            let titleString = newTitles.join('|');
-            console.log(titleString);
-            let extracts = await fetchRetry('/api?extracts=' + titleString, {}, 2).then(res => res.json())
-            extracts = Object.keys(extracts).map(key => ({
-                title: key,
-                extract: extracts[key] === "" ? key : extracts[key]
-            }));
-            console.log(extracts);
+            let sourceExtract = await fetchRetry('/api?prop=extracts&titles=' + title, {}, 2).then(res => res.json());
+            let sourceImage = await fetchRetry('/api?prop=images&titles=' + title, {}, 2).then(res => res.json());
 
-            gData['nodes'] = extracts.map(node => (
+            let titleString = linkSet.join('|');
+            titleString = titleString.replace('&', '%26');
+            let extracts = await fetchRetry('/api?prop=extracts&titles=' + titleString, {}, 2).then(res => res.json());
+            let images = await fetchRetry('/api?prop=images&titles=' + titleString, {}, 2).then(res => res.json());
+
+            let nodeData = [
+                {
+                    title: Object.keys(sourceExtract)[0],
+                    extract: sourceExtract[Object.keys(sourceExtract)[0]],
+                    image: sourceImage[Object.keys(sourceExtract)[0]]
+                }
+            ];
+
+            for (const key in extracts) {
+                if (key != nodeData[0].title) {
+                    nodeData.push({
+                        title: key,
+                        extract: extracts[key],
+                        image: images[key]
+                    });
+                }
+            }
+
+            const newData = {
+                nodes: [],
+                links: []
+            }
+
+            newData['nodes'] = nodeData.map(node => (
                 {
                     id: node.title,
                     name: node.title,
                     extract: node.extract,
+                    image: node.image,
                     color: "rgba(0, 0, 0, 1)",
                     val: 10
                 }));
-            gData['links'] = extracts.map(node => ({
-                    source: titles[0],
+            newData['links'] = nodeData.slice(1).map(node => ({
+                    source: nodeData[0].title,
                     target: node.title,
                     length: 10
                 }));
-            renderGraph(gData);
+
+            return newData;
         }
 
-        function renderGraph(gData = {}) {
+        function renderGraph(data = {}) {
             const Graph = ForceGraph()
             (document.getElementById('graph'))
-                .graphData(gData)
+                .graphData(data)
                 .nodeId('id')
                 .nodeVal('val')
-                .nodeLabel(node => {
-                    return `
-                        <div class="summary">
-                            ${node.extract}
-                        </div>
-                    `
-                })
+                .nodeLabel(
+                    node => {
+                    if (node.image !== "") {
+                        return `
+                            <div class="popup d-flex flex-row">
+                                <p class="summary p-2">${node.extract}</p>
+                                <img src=${node.image} class="thumbnail">
+                            </div>
+                        `
+                    }
+                    else {
+                        return `
+                            <div class="popup p-2">
+                                <p class="summary">${node.extract}</p>
+                            </div>
+                        `
+                    }
+                }
+                )
                 .nodeCanvasObject((node, ctx, globalScale) => {
                     const label = node.id;
                     const fontSize = 20/globalScale;
@@ -130,7 +177,8 @@
                 .onNodeClick(node => {
                     Graph.centerAt(node.x, node.y, 1000);
                     Graph.zoom(8, 2000);
-                });
+                })
+                .height(window.innerHeight - 120);
         }
     </script>
 </div>
