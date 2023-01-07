@@ -8,21 +8,31 @@
 <div class="container-fluid p-1">
     <div class="d-flex flex-row align-items-center">
         <div class="p-2">
-            <form onsubmit="getData()" onchange="searchSuggestions()">
+            <form onsubmit="onSearchSubmit()">
                 <input id="search" type="text" class="form-control" placeholder="Search...">
-                <div class="results">
-                </div>
             </form>
         </div>
         <div class="p-2 align-self-stretch">
-            <button class="btn btn-outline-secondary" type="button" id="get_more" onclick="getGraph().then(data => renderGraph(data))">Get more</button>
+            <button class="btn btn-outline-secondary" type="button" id="get_more" onclick="getGraphData().then(data => renderGraph(data))">Get more</button>
         </div>
         <div class="p-2">
             <p id="error" class="m-0"></p>
         </div>
+        <div id="instructions" class="d-flex mx-auto">
+            <small class="">Right-click to follow the trail.</small>
+        </div>
     </div>
-    <div id="graph"></div>
+    <div id="graph">
+    </div>
     <script>
+        const gData = {
+            nodes: [],
+            links: []
+        };
+
+        let currTitle = "";
+        let outLinks = [];
+
         function fetchRetry(url, options = {}, retries) {
             function onError(err) {
                 retries--;
@@ -51,28 +61,30 @@
             });
         }
 
-        function searchSuggestions() {
-            let search = escapeHTML(document.getElementById("search").value);
-        }
-
-        function getData() {
+        async function onSearchSubmit() {
             event.preventDefault();
-            let title = escapeHTML(document.getElementById("search").value);
-            sessionStorage.clear();
-            fetchRetry('/api?prop=links&titles=' + title, {}, 2).then(res => res.json()).then(data => {
-                if (!Array.isArray(data) || !data.length) {
-                    document.getElementById('error').innerHTML = "Please try again.";
-                }
-                else {
-                    document.getElementById('error').innerHTML = "";
-                    sessionStorage.setItem("curr", title);
-                    sessionStorage.setItem(title, data.join('|'));     
-                    getGraph(title).then(data => renderGraph(data));     
-                }         
-            });
+            gData.nodes = [];
+            gData.links = [];
+            let searchValue = escapeHTML(document.getElementById("search").value);
+            getLinks(searchValue).then(() => getGraphData()).then(data => renderGraph(data));
         }
 
-        function getRandom(arr, n) {
+        async function getLinks(title) {
+            let response = await fetchRetry('/api?prop=links&titles=' + title, {}, 2).then(res => res.json());
+            if (!Array.isArray(response) || !response.length) {
+                document.getElementById('error').innerHTML = "Please try again.";
+                return Promise.reject(new Error('Unable to retrieve links'));
+            }
+            else {
+                outLinks = [];
+                document.getElementById('error').innerHTML = "";
+                currTitle = title;
+                outLinks = response;
+                return Promise.resolve('Successful');
+            }
+        }
+
+        function getRandomSample(arr, n) {
             let result = new Array(n),
                 len = arr.length,
                 taken = new Array(len);
@@ -84,15 +96,14 @@
             return result;
         }
 
-        async function getGraph() {
-            let title = sessionStorage.getItem("curr");
-            let links = sessionStorage.getItem(title).split("|");
+        async function getGraphData() {
+            let title = currTitle;
             let linkSet;
-            if (links.length > 10) {
-                linkSet = getRandom(links, 10);
+            if (outLinks.length > 10) {
+                linkSet = getRandomSample(outLinks, 10);
             }
             else {
-                linkSet = links;
+                linkSet = outLinks;
             }
 
             let sourceExtract = await fetchRetry('/api?prop=extracts&titles=' + title, {}, 2).then(res => res.json());
@@ -132,22 +143,31 @@
                     name: node.title,
                     extract: node.extract,
                     image: node.image,
-                    color: "rgba(0, 0, 0, 1)",
-                    val: 10
+                    group: nodeData[0]
                 }));
             newData['links'] = nodeData.slice(1).map(node => ({
                     source: nodeData[0].title,
                     target: node.title,
-                    length: 10
                 }));
 
             return newData;
         }
 
-        function renderGraph(data = {}) {
+        function removeDuplicates(arr) {
+            let seen = new Set();
+            return arr.filter(item => {
+                let k = item.id;
+                return seen.has(k) ? false : seen.add(k);
+            })
+        }
+
+        async function renderGraph(data = {}) {
             const Graph = ForceGraph()
             (document.getElementById('graph'))
-                .graphData(data)
+                .graphData({
+                    nodes: removeDuplicates(gData.nodes.concat(data.nodes)),
+                    links: [...new Set(gData.links.concat(data.links))]
+                })
                 .nodeId('id')
                 .nodeVal('val')
                 .nodeLabel(
@@ -169,6 +189,7 @@
                     }
                 }
                 )
+                .nodeAutoColorBy('group')
                 .nodeCanvasObject((node, ctx, globalScale) => {
                     const label = node.id;
                     const fontSize = 20/globalScale;
@@ -176,12 +197,12 @@
                     const textWidth = ctx.measureText(label).width;
                     const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
 
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
                     ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
                     
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = node.color;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 1)';
                     ctx.fillText(label, node.x, node.y);
 
                     node.__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
@@ -195,7 +216,15 @@
                     Graph.centerAt(node.x, node.y, 1000);
                     Graph.zoom(8, 2000);
                 })
+                .onNodeRightClick(node => {
+                    gData.nodes = Graph.graphData().nodes;
+                    gData.links = Graph.graphData().links;
+
+                    getLinks(node.id).then(() => getGraphData()).then((data) => renderGraph(data));
+                })
                 .height(window.innerHeight - 120);
+            console.log(Graph.graphData().links);
+            console.log(Graph.graphData().nodes);
         }
     </script>
 </div>
