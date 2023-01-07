@@ -39,28 +39,32 @@ def get_summary(titles: str) -> Response:
     i = 0
     r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=extracts&exintro=true")
     data = r.json()
-    pages = data['query']['pages']
-    summaries = {}
-    for page in pages:
-        if "extract" in pages[page].keys():
-            extract = re.sub('(?!<b>|</b>|<span>|</span>)(<[^<]+?>|;<[^<]+?>)', '', pages[page]['extract'])
-            extract = re.sub('<!--[^<]+?-->', '', extract)
-            if (len(extract) > 250):
-                words = extract.split()
-                i = 0
-                extract = ""
-                for x in words:
-                    extract += " " + x
-                    i += len(x)
-                    if (i > 197):
-                        break
-                if extract[len(extract) - 1] == "":
-                    extract = extract[:len(extract) - 1]
-                extract += "..."
-            summaries[pages[page]['title']] = extract
-        else:
-            summaries[pages[page]['title']] = f"<b>{pages[page]['title']}</b>"
-    return jsonify(summaries)
+    try:
+        pages = data['query']['pages']
+        summaries = {}
+        for page in pages:
+            if "extract" in pages[page].keys():
+                extract = re.sub('(?!<b>|</b>|<span>|</span>)(<[^<]+?>|;<[^<]+?>)', '', pages[page]['extract'])
+                extract = re.sub('<!--[^<]+?-->', '', extract)
+                if (len(extract) > 250):
+                    words = extract.split()
+                    i = 0
+                    extract = ""
+                    for x in words:
+                        extract += " " + x
+                        i += len(x)
+                        if (i > 197):
+                            break
+                    if extract[len(extract) - 1] == "":
+                        extract = extract[:len(extract) - 1]
+                    extract += "..."
+                summaries[pages[page]['title']] = extract
+            else:
+                summaries[pages[page]['title']] = f"<b>{pages[page]['title']}</b>"
+        return jsonify(summaries)
+    except Exception as e:
+        return error()
+
 
 def get_thumbnail(titles: str) -> Response:
     titles = titles.replace('&', '%26')
@@ -76,9 +80,15 @@ def get_thumbnail(titles: str) -> Response:
     return jsonify(images)
 
 def search(input: str) -> Response:
+    if (input == ""):
+        return jsonify({})
     r = requests.get(f"{BASE_URL}&action=opensearch&search={input}")
     data = r.json()
     if len(data) > 1:
         return jsonify(data[1])
     else:
         return jsonify(data[0])
+
+def error() -> Response:
+    error = {"Error": "The requested data could not be found."}
+    return jsonify(error)

@@ -27,4 +27,4 @@ def api():
     elif ('query' in request.args):
         return WikipediaApi.search(request.args['query'])
     else:
-        redirect("/")
+        return WikipediaApi.error()
