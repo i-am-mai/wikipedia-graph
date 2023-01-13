@@ -2,6 +2,7 @@
 {% block head %}
     <title>wikipedia rabbit hole</title>
     <script src="//unpkg.com/force-graph"></script>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 {% endblock %}
 
 {% block content %}
@@ -70,7 +71,7 @@
         }
 
         async function getLinks(title) {
-            let response = await fetchRetry('/api?prop=links&titles=' + title, {}, 2).then(res => res.json());
+            let response = await fetchRetry(`/api?prop=links&titles=${title}`, {}, 2).then(res => res.json());
             if (!Array.isArray(response) || !response.length) {
                 document.getElementById('error').innerHTML = "Please try again.";
                 return Promise.reject(new Error('Unable to retrieve links'));
@@ -106,13 +107,13 @@
                 linkSet = outLinks;
             }
 
-            let sourceExtract = await fetchRetry('/api?prop=extracts&titles=' + title, {}, 2).then(res => res.json());
-            let sourceImage = await fetchRetry('/api?prop=images&titles=' + title, {}, 2).then(res => res.json());
+            let sourceExtract = await fetchRetry(`/api?prop=extracts&titles=${title}`, {}, 2).then(res => res.json());
+            let sourceImage = await fetchRetry(`/api?prop=images&titles=${title}`, {}, 2).then(res => res.json());
 
             let titleString = linkSet.join('|');
             titleString = titleString.replace('&', '%26');
-            let extracts = await fetchRetry('/api?prop=extracts&titles=' + titleString, {}, 2).then(res => res.json());
-            let images = await fetchRetry('/api?prop=images&titles=' + titleString, {}, 2).then(res => res.json());
+            let extracts = await fetchRetry(`/api?prop=extracts&titles=${titleString}`, {}, 2).then(res => res.json());
+            let images = await fetchRetry(`/api?prop=images&titles=${titleString}`, {}, 2).then(res => res.json());
 
             let nodeData = [
                 {
@@ -166,7 +167,7 @@
             (document.getElementById('graph'))
                 .graphData({
                     nodes: removeDuplicates(gData.nodes.concat(data.nodes)),
-                    links: [...new Set(gData.links.concat(data.links))]
+                    links: gData.links.concat(data.links)
                 })
                 .nodeId('id')
                 .nodeVal('val')
@@ -220,7 +221,9 @@
                     gData.nodes = Graph.graphData().nodes;
                     gData.links = Graph.graphData().links;
 
-                    getLinks(node.id).then(() => getGraphData()).then((data) => renderGraph(data));
+                    getLinks(node.id)
+                    .then(() => getGraphData())
+                    .then((data) => renderGraph(data));
                 })
                 .height(window.innerHeight - 120);
             console.log(Graph.graphData().links);

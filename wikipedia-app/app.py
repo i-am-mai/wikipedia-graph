@@ -1,7 +1,14 @@
-from flask import Flask, render_template, request, redirect, make_response
+from flask import Flask, render_template, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 import WikipediaApi
+import os
 
 app = Flask(__name__)
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 
+                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/", methods=['GET', 'POST'])
 def index():
