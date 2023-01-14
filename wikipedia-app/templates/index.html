@@ -20,7 +20,7 @@
             <p id="error" class="m-0"></p>
         </div>
         <div id="instructions" class="d-flex mx-auto">
-            <small class="">Right-click to follow the trail.</small>
+            <small class="">Left-click to follow the link, right-click to open the Wikipedia article.</small>
         </div>
     </div>
     <div id="graph">
@@ -214,18 +214,24 @@
                     bckgDimensions && ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, ...bckgDimensions);
                 })
                 .onNodeClick(node => {
-                    Graph.centerAt(node.x, node.y, 1000);
-                    Graph.zoom(8, 2000);
-                })
-                .onNodeRightClick(node => {
                     gData.nodes = Graph.graphData().nodes;
                     gData.links = Graph.graphData().links;
 
                     getLinks(node.id)
                     .then(() => getGraphData())
-                    .then((data) => renderGraph(data));
+                    .then((data) => {
+                        newData = {
+                            nodes: removeDuplicates(gData.nodes.concat(data.nodes)),
+                            links: gData.links.concat(data.links)
+                        }
+                        Graph.graphData(newData);
+
+                    });
                 })
-                .height(window.innerHeight - 120);
+                .onNodeRightClick(node => {
+                    let title = encodeURIComponent(node.id);
+                    window.open(`https://en.wikipedia.com/wiki/${title}`, "_blank", "noopener, noreferrer");
+                });
             console.log(Graph.graphData().links);
             console.log(Graph.graphData().nodes);
         }
