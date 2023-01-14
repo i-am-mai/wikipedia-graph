@@ -17,11 +17,6 @@ def index():
     elif request.method == "POST":
         return render_template("index.html", title=request.form['title'])
 
-@app.route("/about")
-def about():
-    return render_template("about.html")
-
-
 @app.route("/api")
 def api():
     if ('prop' in request.args):
