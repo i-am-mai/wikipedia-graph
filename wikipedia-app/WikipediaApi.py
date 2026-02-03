@@ -4,6 +4,9 @@ import requests
 import re
 
 BASE_URL = "https://en.wikipedia.org/w/api.php?format=json"
+HEADERS =  {
+    "User-Agent": "WikipediaGraphBot/1.0 (https://iammai.pythonanywhere.com; mai.t.tran1743@gmail.com)"
+}
 
 def get_links(title: str) -> Response:
     """
@@ -18,7 +21,7 @@ def get_links(title: str) -> Response:
 
     while (True):
         temp = f"&plcontinue={plcontinue}" if plcontinue != "" else ""
-        r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={title}&prop=links&pllimit=max{temp}")
+        r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={title}&prop=links&pllimit=max{temp}", headers=HEADERS)
         try:
             data = r.json()
             id = next(iter(data['query']['pages']))
@@ -37,7 +40,7 @@ def get_links(title: str) -> Response:
 def get_summary(titles: str) -> Response:
     titles = titles.replace('&', '%26')
     i = 0
-    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=extracts&exintro=true")
+    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=extracts&exintro=true", headers=HEADERS)
     data = r.json()
     try:
         pages = data['query']['pages']
@@ -68,7 +71,7 @@ def get_summary(titles: str) -> Response:
 
 def get_thumbnail(titles: str) -> Response:
     titles = titles.replace('&', '%26')
-    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=pageimages&piprop=thumbnail&pilicense=any&pithumbsize=300")
+    r = requests.get(f"{BASE_URL}&action=query&redirects=1&titles={titles}&prop=pageimages&piprop=thumbnail&pilicense=any&pithumbsize=300", headers=HEADERS)
     data = r.json()
     pages = data['query']['pages']
     images = {}
@@ -82,7 +85,7 @@ def get_thumbnail(titles: str) -> Response:
 def search(input: str) -> Response:
     if (input == ""):
         return jsonify({})
-    r = requests.get(f"{BASE_URL}&action=opensearch&search={input}")
+    r = requests.get(f"{BASE_URL}&action=opensearch&search={input}", headers=HEADERS)
     data = r.json()
     if len(data) > 1:
         return jsonify(data[1])
