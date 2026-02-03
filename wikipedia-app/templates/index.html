@@ -13,14 +13,14 @@
                 <input id="search" type="text" class="form-control" placeholder="Search...">
             </form>
         </div>
-        <div class="p-2 align-self-stretch">
+        <div class="d-flex p-2 align-self-stretch">
             <button class="btn btn-outline-secondary" type="button" id="get_more" onclick="getGraphData().then(data => renderGraph(data))">Get more</button>
         </div>
         <div class="p-2">
             <p id="error" class="m-0"></p>
         </div>
-        <div id="instructions" class="d-flex mx-auto">
-            <small class="">Left-click to follow the link, right-click to open the Wikipedia article.</small>
+        <div class="instructions-wide" class="d-flex mx-auto">
+            <small class="instructions-wide">Left-click to follow the link, right-click to open the Wikipedia article.</small>
         </div>
     </div>
     <div id="graph">
@@ -175,9 +175,11 @@
                     node => {
                     if (node.image !== "") {
                         return `
-                            <div class="popup d-flex flex-row">
-                                <p class="summary p-1">${node.extract}</p>
-                                <img src=${node.image} class="thumbnail">
+                            <div class="popup-container">
+                                <div class="popup d-flex flex-row">
+                                    <p class="summary p-1">${node.extract}</p>
+                                    <img src=${node.image} class="thumbnail">
+                                </div>
                             </div>
                         `
                     }

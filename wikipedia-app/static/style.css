@@ -21,7 +21,7 @@ body {
 }
 
 .popup {
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.9) !important;
     display: flex;
     justify-content: space-between;
     align-items: stretch;
@@ -33,9 +33,10 @@ body {
 
 .summary {
     color: black;
-    font-size: 0.9em;
+    font-size: 0.9rem;
     max-width: 19em;
     transform: none !important;
+    padding: 0.75em !important;
 }
 
 .thumbnail {
@@ -45,10 +46,10 @@ body {
     transform: none !important;
 }
 
-.force-graph-container .graph-tooltip {
+.force-graph-container .float-tooltip-kap {
     background-color: white !important;
     padding: 0px;
-    border: 1px solid rgba(200, 200, 200, 0.5);
+    border: 1px solid rgba(200, 200, 200, 0.5) !important;
     border-radius: 0px !important;
     margin: 0px;
     display: flex;
@@ -59,6 +60,23 @@ body {
     display: inline-block;
 }
 
+#get_more {
+    width: 100%;
+}
+
 canvas {
     display: block;
+}
+
+#instructions-small {
+    display: none;
+}
+
+@media screen and (max-width: 600px) {
+    .instructions-small {
+        display: flex;
+    }
+    .instructions-wide {
+        display: none;
+    }
 }
